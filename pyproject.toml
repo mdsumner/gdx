@@ -4,7 +4,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "gdx"
-version = "0.0.1"
+version = "0.0.2"
 description = "xarray extension for GDAL"
 maintainers = [
     {name = "gdx Contributors"},
@@ -37,3 +37,7 @@ dependencies = [
     "packaging",
     "GDAL>=3.10.0",
 ]
+
+
+[project.entry-points."xarray.backends"]
+GDAL = "gdx.gdx:GDALBackendEntrypoint"
