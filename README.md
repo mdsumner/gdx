@@ -76,7 +76,8 @@ bvm.sel(xt_ocean = slice(140, 150), yt_ocean = slice(-55, -45), st_ocean = slice
 Lots to do, make sure scaling happens on compute() with .values, convert
 from mdim mosaic to xarray, …
 
-Let’s template a bunch of netcdf files out there.
+Let’s template a bunch of netcdf files out there. (Note this requires
+GDAL\>=3.12.0 which isn’t actually yet).
 
 ``` python
 month = "202501"
