@@ -117,14 +117,20 @@ class GDALBackendArray(BackendArray):
       else:
           raise IndexError(f"Unsupported x index type: {type(x_idx)}")
       
+
+      scale = self.band.GetScale())
+      offset = self.band.GetOffset()
       # Read from GDAL
       data = self.band.ReadAsArray(
           xoff=x_start,
           yoff=y_start,
           win_xsize=x_size,
           win_ysize=y_size
-      )
-      
+      ) 
+      if scale is not None: 
+        data = data * scale
+      if offset is not None: 
+        data = data + offset
       # Squeeze dimensions if we indexed with integers
       if squeeze_y and squeeze_x:
           return data[0, 0]
@@ -206,11 +212,18 @@ class GDALMultiDimArray(BackendArray):
           steps.append(step)
       
       # Read from GDAL multidim array
+      scale = self.mdarray.GetScale() 
+      offset = self.mdarray.GetOffset() 
       data = self.mdarray.ReadAsArray(
           array_start_idx=starts,
           count=counts,
           array_step=steps
       )
+      if scale is not None:
+        data = data * scale
+      if offset is not None: 
+        data = data + offset
+        
       
       # Squeeze out dimensions that were indexed with integers
       for dim_idx in reversed(squeeze_dims):
