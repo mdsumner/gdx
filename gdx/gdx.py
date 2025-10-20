@@ -229,7 +229,7 @@ class GDALBackendEntrypoint(BackendEntrypoint):
         filename_or_obj,
         *,
         drop_variables=None,
-        chunks=None,
+        chunks={},
         multidim=False,
         group=None,
         **kwargs
@@ -452,8 +452,8 @@ if __name__ == "__main__":
     # Method 1: Standard raster mode
     backend = GDALBackendEntrypoint()
     ds_raster = backend.open_dataset(
-        "path/to/your/file.tif",
-        chunks=None
+        "/perm_storage/home/mdsumner/world_ocean_ssh.tif",
+        chunks={}
     )
     print("Raster mode:")
     print(ds_raster)
