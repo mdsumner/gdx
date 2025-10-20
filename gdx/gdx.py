@@ -1,9 +1,11 @@
+## assisted by Claude, 2025-10-20
 import xarray as xr
 from xarray.backends import BackendEntrypoint, BackendArray
 from xarray.core import indexing
 import numpy as np
 import dask.array as da
 from osgeo import gdal
+gdal.UseExceptions()
 from typing import Iterable, Optional
 
 

@@ -1,5 +1,7 @@
-"""The setup script."""
+from setuptools import setup, find_packages
 
-from setuptools import setup
-
-setup()
+setup(
+    name="gdx",
+    version="0.0.3",
+    packages=find_packages(),
+)
