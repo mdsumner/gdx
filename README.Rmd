@@ -1,0 +1,53 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+reticulate::use_python("~/workenv/bin/python3")
+reticulate::repl_python()
+
+```
+
+# gdx
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of gdx is to integrate GDAL with xarray,  especially for the multidimensional API which is still relatively underutilized.
+
+
+Here's a basic example, in time this could be registred as an xarray backend. 
+
+```{python basic}
+from gdx import GDALBackendEntrypoint
+backend = GDALBackendEntrypoint()
+dsn =  "/vsicurl/https://projects.pawsey.org.au/idea-sealevel-glo-phy-l4-nrt-008-046/data.marine.copernicus.eu/SEALEVEL_GLO_PHY_L4_NRT_008_046/cmems_obs-sl_glo_phy-ssh_nrt_allsat-l4-duacs-0.125deg_P1D_202506/2025/08/nrt_global_allsat_phy_l4_20250825_20250825.nc"
+ds = backend.open_dataset(f'vrt://{dsn}?sd_name=vgos')
+ds.band_1.isel(x = 0)
+## the raw values for now
+ds.band_1.sel(x = 100, y = -50).values
+
+ds = backend.open_dataset(dsn, multidim = True) 
+ds.sla.isel(longitude = 0, latitude = 1000).values
+
+big_virtual_mdim = "/vsicurl/https://gist.githubusercontent.com/mdsumner/18c5d302d00b9a456bb73d30ac758764/raw/f26e1b2e202f759d6aace4d7deb3e04ea3c85f15/mdim.vrt"
+
+backend.open_dataset(big_virtual_mdim, multidim = True)
+
+
+#ds.sel(xt_ocean = slice(140, 150))
+# import xarray
+# xarray.open_dataset(dsn, engine = "gdal")
+```
+
+Lots to do,  make sure read is really lazy, convert from mdim mosaic to xarray, ...
+
+## Code of Conduct
+  
+Please note that the gdx project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.

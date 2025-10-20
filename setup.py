@@ -4,4 +4,9 @@ setup(
     name="gdx",
     version="0.0.3",
     packages=find_packages(),
+    entry_points={
+        "xarray.backends": [
+            "gdal=gdx.gdx:GDALBackendEntrypoint"
+        ],
+    },
 )

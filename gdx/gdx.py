@@ -63,60 +63,77 @@ class GDALBackendArray(BackendArray):
         return len(self._shape)
     
     def __getitem__(self, key):
+        # Handle xarray's explicit indexing objects
+        from xarray.core import indexing as xr_indexing
+        
+        if isinstance(key, xr_indexing.BasicIndexer):
+            key = key.tuple
+        elif isinstance(key, xr_indexing.OuterIndexer):
+            key = key.tuple
+        elif isinstance(key, xr_indexing.VectorizedIndexer):
+            key = key.tuple
+        
         # Handle direct array indexing
         if isinstance(key, tuple):
             return self._raw_indexing_method(key)
         else:
             return self._raw_indexing_method((key,))
-    
+      
     def _raw_indexing_method(self, key):
-        """Read data from GDAL using basic indexing."""
-        # Ensure we have a tuple
-        if len(key) != 2:
-            raise IndexError(f"Expected 2D index, got {len(key)}D")
-        
-        y_idx, x_idx = key
-        
-        # Convert integers and slices to window parameters
-        if isinstance(y_idx, int):
-            y_start, y_size = y_idx, 1
-            squeeze_y = True
-        elif isinstance(y_idx, slice):
-            y_start = y_idx.start or 0
-            y_stop = y_idx.stop or self.shape[0]
-            y_size = y_stop - y_start
-            squeeze_y = False
-        else:
-            raise IndexError(f"Unsupported y index type: {type(y_idx)}")
-        
-        if isinstance(x_idx, int):
-            x_start, x_size = x_idx, 1
-            squeeze_x = True
-        elif isinstance(x_idx, slice):
-            x_start = x_idx.start or 0
-            x_stop = x_idx.stop or self.shape[1]
-            x_size = x_stop - x_start
-            squeeze_x = False
-        else:
-            raise IndexError(f"Unsupported x index type: {type(x_idx)}")
-        
-        # Read from GDAL
-        data = self.band.ReadAsArray(
-            xoff=x_start,
-            yoff=y_start,
-            win_xsize=x_size,
-            win_ysize=y_size
-        )
-        
-        # Squeeze dimensions if we indexed with integers
-        if squeeze_y and squeeze_x:
-            return data[0, 0]
-        elif squeeze_y:
-            return data[0, :]
-        elif squeeze_x:
-            return data[:, 0]
-        else:
-            return data
+      """Read data from GDAL using basic indexing."""
+      # Ensure we have a tuple
+      if not isinstance(key, tuple):
+          key = (key,)
+      
+      # Pad key with full slices if needed
+      if len(key) < 2:
+          key = key + (slice(None),) * (2 - len(key))
+      
+      if len(key) > 2:
+          raise IndexError(f"Expected at most 2D index, got {len(key)}D")
+      
+      y_idx, x_idx = key
+      
+      # Convert integers and slices to window parameters
+      if isinstance(y_idx, int):
+          y_start, y_size = y_idx, 1
+          squeeze_y = True
+      elif isinstance(y_idx, slice):
+          y_start = y_idx.start or 0
+          y_stop = y_idx.stop or self.shape[0]
+          y_size = y_stop - y_start
+          squeeze_y = False
+      else:
+          raise IndexError(f"Unsupported y index type: {type(y_idx)}")
+      
+      if isinstance(x_idx, int):
+          x_start, x_size = x_idx, 1
+          squeeze_x = True
+      elif isinstance(x_idx, slice):
+          x_start = x_idx.start or 0
+          x_stop = x_idx.stop or self.shape[1]
+          x_size = x_stop - x_start
+          squeeze_x = False
+      else:
+          raise IndexError(f"Unsupported x index type: {type(x_idx)}")
+      
+      # Read from GDAL
+      data = self.band.ReadAsArray(
+          xoff=x_start,
+          yoff=y_start,
+          win_xsize=x_size,
+          win_ysize=y_size
+      )
+      
+      # Squeeze dimensions if we indexed with integers
+      if squeeze_y and squeeze_x:
+          return data[0, 0]
+      elif squeeze_y:
+          return data[0, :]
+      elif squeeze_x:
+          return data[:, 0]
+      else:
+          return data
 
 
 class GDALMultiDimArray(BackendArray):
@@ -139,54 +156,67 @@ class GDALMultiDimArray(BackendArray):
     
     @property
     def dtype(self):
-        return self._dtype
+        return np.dtype(self._dtype)
     
     def __getitem__(self, key):
-        # Handle direct array indexing
-        if not isinstance(key, tuple):
-            key = (key,)
-        return self._raw_indexing_method(key)
+     # Handle xarray's explicit indexing objects
+     from xarray.core import indexing as xr_indexing
     
+     if isinstance(key, xr_indexing.BasicIndexer):
+         key = key.tuple
+     elif isinstance(key, xr_indexing.OuterIndexer):
+         key = key.tuple
+     elif isinstance(key, xr_indexing.VectorizedIndexer):
+         key = key.tuple
+    
+     # Handle direct array indexing
+     if not isinstance(key, tuple):
+         key = (key,)
+     return self._raw_indexing_method(key)
+   
     def _raw_indexing_method(self, key):
-        """Read data from GDAL multidim array."""
-        # Convert key to array of slices
-        if not isinstance(key, tuple):
-            key = (key,)
-        
-        # Build start, count, and step arrays for GDAL
-        ndim = len(self.shape)
-        starts = []
-        counts = []
-        steps = []
-        
-        for i, k in enumerate(key):
-            if isinstance(k, slice):
-                start = k.start or 0
-                stop = k.stop or self.shape[i]
-                step = k.step or 1
-                count = (stop - start + step - 1) // step
-            elif isinstance(k, int):
-                start = k
-                count = 1
-                step = 1
-            else:
-                raise IndexError(f"Unsupported index type: {type(k)}")
-            
-            starts.append(start)
-            counts.append(count)
-            steps.append(step)
-        print("another array")
-        print(starts)
-        print(counts)
-        print(steps)
-        # Read from GDAL multidim array
-        data = self.mdarray.ReadAsArray(
-            array_start_idx=starts,
-            count=counts,
-            array_step=steps
-        )
-        
-        return data
+      """Read data from GDAL multidim array."""
+      # Convert key to array of slices
+      if not isinstance(key, tuple):
+          key = (key,)
+      
+      # Build start, count, and step arrays for GDAL
+      ndim = len(self.shape)
+      starts = []
+      counts = []
+      steps = []
+      squeeze_dims = []  # Track which dimensions to squeeze
+      
+      for i, k in enumerate(key):
+          if isinstance(k, slice):
+              start = k.start or 0
+              stop = k.stop or self.shape[i]
+              step = k.step or 1
+              count = (stop - start + step - 1) // step
+          elif isinstance(k, int):
+              start = k
+              count = 1
+              step = 1
+              squeeze_dims.append(i)  # Mark this dimension for squeezing
+          else:
+              raise IndexError(f"Unsupported index type: {type(k)}")
+          
+          starts.append(start)
+          counts.append(count)
+          steps.append(step)
+      
+      # Read from GDAL multidim array
+      data = self.mdarray.ReadAsArray(
+          array_start_idx=starts,
+          count=counts,
+          array_step=steps
+      )
+      
+      # Squeeze out dimensions that were indexed with integers
+      for dim_idx in reversed(squeeze_dims):
+          data = np.squeeze(data, axis=dim_idx)
+      
+      return data
 
 
 class GDALBackendEntrypoint(BackendEntrypoint):
@@ -374,8 +404,9 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             is_coord = any(dim.GetName() == array_name for dim in dims)
             
             if is_coord and len(dim_names) == 1:
-                # Add as coordinate
-                coords[array_name] = xr.DataArray(data, dims=dim_names, attrs=attrs)
+                # Add as coordinate - load eagerly for index variables
+                coord_data = backend_array[:]  # Load the data
+                coords[array_name] = xr.DataArray(coord_data, dims=dim_names, attrs=attrs)
             else:
                 # Add as data variable
                 data_vars[array_name] = xr.DataArray(data, dims=dim_names, attrs=attrs)
@@ -396,9 +427,9 @@ class GDALBackendEntrypoint(BackendEntrypoint):
                 group_attrs[attr_name] = attr_value
         
         # Create dataset
-        #ds = xr.Dataset(data_vars, coords=coords, attrs=group_attrs)
+        ds = xr.Dataset(data_vars, coords=coords, attrs=group_attrs)
         
-        return {"data_vars": data_vars, "coords": coords}
+        return ds  #{"data_vars": data_vars, "coords": coords}
     
     def guess_can_open(self, filename_or_obj):
         """Guess if this backend can open the file."""
@@ -413,8 +444,6 @@ class GDALBackendEntrypoint(BackendEntrypoint):
         return False
 
 
-# Register the backend
-#xr.backends.register_backend("gdal", GDALBackendEntrypoint)
 
 
 
