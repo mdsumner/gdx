@@ -16,6 +16,16 @@ multidimensional API which is still relatively underutilized.
 - [ ] explore when we need to control driver choice
 - [ ] compare to opening with GDAL itself after `mdim mosaic`
 
+### Open questions
+
+- I set `chunks = {}` by default, is that ok
+- dask will very happily throw fsspec byte range requests at Thredds,
+  more than 10x will get a 104 error but GDAL multidim is better behaved
+  when you use it on its own: can we leverage this (GDAL connection
+  pooling?) within xarray??
+- I saw errors from HDF5, but is that via NetCDF or is my driver select
+  going wrong
+
 Here’s a basic example, this could be registered as an xarray backend
 *engine*.
 
