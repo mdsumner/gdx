@@ -1,4 +1,3 @@
-## assisted by Claude, 2025-10-20
 import xarray as xr
 from xarray.backends import BackendEntrypoint, BackendArray
 from xarray.core import indexing
@@ -118,19 +117,27 @@ class GDALBackendArray(BackendArray):
           raise IndexError(f"Unsupported x index type: {type(x_idx)}")
       
 
-      scale = self.band.GetScale())
-      offset = self.band.GetOffset()
+      #scale = self.band.GetScale())
+      #offset = self.band.GetOffset()
       # Read from GDAL
+      #print("newvar\n")
+      #print(x_start)
+      #print(y_start)
+      #print(x_size)
+      #print(y_size)
+      #osgeo.gdal_array.BandReadAsArray(band, xoff=0, yoff=0, win_xsize=None, win_ysize=None, buf_xsize=None, buf_ysize=None, buf_type=None, buf_obj=None, resample_alg=0, callback=None, callback_data=None)
       data = self.band.ReadAsArray(
           xoff=x_start,
           yoff=y_start,
           win_xsize=x_size,
           win_ysize=y_size
       ) 
-      if scale is not None: 
-        data = data * scale
-      if offset is not None: 
-        data = data + offset
+      #print(data.shape)
+      #print(data)
+      #if scale is not None: 
+      #  data = data * scale
+      #if offset is not None: 
+      #  data = data + offset
       # Squeeze dimensions if we indexed with integers
       if squeeze_y and squeeze_x:
           return data[0, 0]
@@ -212,18 +219,25 @@ class GDALMultiDimArray(BackendArray):
           steps.append(step)
       
       # Read from GDAL multidim array
-      scale = self.mdarray.GetScale() 
-      offset = self.mdarray.GetOffset() 
+      # scale = self.mdarray.GetScale() 
+      # offset = self.mdarray.GetOffset() 
+      #print("newvar\n")
+      #print(starts)
+      #print(counts)
+      #print(steps)
+      ##osgeo.gdal_array.DatasetReadAsArray(ds, xoff=0, yoff=0, win_xsize=None, win_ysize=None, buf_obj=None, buf_xsize=None, buf_ysize=None, buf_type=None, resample_alg=0, callback=None, callback_data=None, interleave='band', band_list=None)
       data = self.mdarray.ReadAsArray(
           array_start_idx=starts,
           count=counts,
           array_step=steps
       )
-      if scale is not None:
-        data = data * scale
-      if offset is not None: 
-        data = data + offset
-        
+      #print(data.shape)
+      #print(data)
+      # if scale is not None:
+      #   data = data * scale
+      # if offset is not None: 
+      #   data = data + offset
+      #   
       
       # Squeeze out dimensions that were indexed with integers
       for dim_idx in reversed(squeeze_dims):
@@ -303,7 +317,7 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             
             # Create backend array
             backend_array = GDALBackendArray(dataset, band_idx)
-            
+            #print(f'band{band_idx}')
             # Wrap with Dask if chunks specified
             if chunks is not None:
                 dask_array = da.from_array(
@@ -468,17 +482,17 @@ if __name__ == "__main__":
         "/perm_storage/home/mdsumner/world_ocean_ssh.tif",
         chunks={}
     )
-    print("Raster mode:")
-    print(ds_raster)
-    #print(ds_raster['band_1'][0:100, 0:100])
+    #print("Raster mode:")
+    #print(ds_raster)
+    ##print(ds_raster['band_1'][0:100, 0:100])
     # Method 2: Multidimensional mode
     ds_multidim = backend.open_dataset(
         "path/to/your/CS2WFA_25km_201007.nc",
         multidim=True,
         chunks={}
     )
-    print("\nMultidim mode:")
-    print(ds_multidim)
+    #print("\nMultidim mode:")
+    #print(ds_multidim)
     # 
     # # Method 3: Multidimensional mode with group
     # ds_group = backend.open_dataset(
@@ -487,5 +501,5 @@ if __name__ == "__main__":
     #     group="/my/data/group",
     #     chunks={"time": 1, "lat": 256, "lon": 256}
     # )
-    # print("\nMultidim mode with group:")
-    # print(ds_group)
+    # #print("\nMultidim mode with group:")
+    # #print(ds_group)

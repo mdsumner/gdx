@@ -35,8 +35,69 @@ backend = GDALBackendEntrypoint()
 dsn =  "/vsicurl/https://projects.pawsey.org.au/idea-sealevel-glo-phy-l4-nrt-008-046/data.marine.copernicus.eu/SEALEVEL_GLO_PHY_L4_NRT_008_046/cmems_obs-sl_glo_phy-ssh_nrt_allsat-l4-duacs-0.125deg_P1D_202506/2025/08/nrt_global_allsat_phy_l4_20250825_20250825.nc"
 ds = backend.open_dataset(f'vrt://{dsn}?sd_name=vgos', chunks = {})
 ds1 = backend.open_dataset(dsn, multidim = True, chunks = {}) 
+```
 
+We have a Raster xarray:
 
+``` python
+ds
+
+<xarray.Dataset> Size: 17MB
+Dimensions:  (x: 2880, y: 1440)
+Coordinates:
+  * x        (x) float64 23kB -180.0 -179.9 -179.8 -179.6 ... 179.6 179.8 179.9
+  * y        (y) float64 12kB 90.0 89.88 89.75 89.62 ... -89.62 -89.75 -89.88
+Data variables:
+    band_1   (y, x) int32 17MB dask.array<chunksize=(1440, 2880), meta=np.ndarray>
+Attributes:
+    crs:           GEOGCS["unknown",DATUM["unnamed",SPHEROID["Spheroid",63781...
+    geotransform:  (-180.0, 0.125, 0.0, 90.0, 0.0, -0.125)
+```
+
+and a Multidim xarray:
+
+``` python
+ds1
+
+<xarray.Dataset> Size: 166MB
+Dimensions:    (latitude: 1440, nv: 2, longitude: 2880, time: 1)
+Coordinates:
+  * latitude   (latitude) float32 6kB -89.94 -89.81 -89.69 ... 89.69 89.81 89.94
+  * nv         (nv) int32 8B 0 1
+  * longitude  (longitude) float32 12kB -179.9 -179.8 -179.7 ... 179.8 179.9
+  * time       (time) float32 4B 2.763e+04
+Data variables:
+    lat_bnds   (latitude, nv) float32 12kB dask.array<chunksize=(1440, 2), meta=np.ndarray>
+    lon_bnds   (longitude, nv) float32 23kB dask.array<chunksize=(2880, 2), meta=np.ndarray>
+    sla        (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    err_sla    (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    ugosa      (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    err_ugosa  (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    vgosa      (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    err_vgosa  (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    adt        (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    ugos       (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    vgos       (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+    flag_ice   (time, latitude, longitude) int32 17MB dask.array<chunksize=(1, 1440, 2880), meta=np.ndarray>
+Attributes: (12/44)
+    Conventions:                     CF-1.6
+    Metadata_Conventions:            Unidata Dataset Discovery v1.0
+    cdm_data_type:                   Grid
+    comment:                         Sea Surface Height measured by Altimetry...
+    contact:                         servicedesk.cmems@mercator-ocean.eu
+    creator_email:                   servicedesk.cmems@mercator-ocean.eu
+    ...                              ...
+    summary:                         DUACS Near-Real-Time Level-4 sea surface...
+    time_coverage_duration:          P1D
+    time_coverage_end:               2025-08-25T12:00:00Z
+    time_coverage_resolution:        P1D
+    time_coverage_start:             2025-08-24T12:00:00Z
+    title:                           NRT merged all satellites Global Ocean G...
+```
+
+There’s one variable called ‘band_1’ for the raster:
+
+``` python
 ds.band_1.isel(x = 0)
 # <xarray.DataArray 'band_1' (y: 1440)> Size: 6kB
 # dask.array<getitem, shape=(1440,), dtype=int32, chunksize=(1440,), chunktype=numpy.ndarray>
@@ -47,7 +108,11 @@ ds.band_1.isel(x = 0)
 #     nodata:   -2147483647.0
 #     scale:    0.0001
 #     offset:   0.0
-    
+```
+
+we can access actual values
+
+``` python
 ## the raw values for now
 ds.band_1.sel(x = 100, y = -50).values
 # array(441, dtype=int32)
@@ -55,8 +120,11 @@ ds.band_1.sel(x = 100, y = -50).values
 
 ds1.sla.isel(longitude = 0, latitude = 1000).values
 #array([2404], dtype=int32)
+```
 
+This example is a virtualized mosaic of NetCDF in multidim VRT.
 
+``` python
 big_virtual_mdim = "/vsicurl/https://gist.githubusercontent.com/mdsumner/18c5d302d00b9a456bb73d30ac758764/raw/f26e1b2e202f759d6aace4d7deb3e04ea3c85f15/mdim.vrt"
 
 bvm = backend.open_dataset(big_virtual_mdim, multidim = True, chunks = {})
@@ -83,11 +151,11 @@ bvm.sel(xt_ocean = slice(140, 150), yt_ocean = slice(-55, -45), st_ocean = slice
 #       shape=(1, 100, 100), dtype=int16)
 ```
 
-Lots to do, make sure scaling happens on compute() with .values, convert
-from mdim mosaic to xarray, …
+There’s a lot more to do, scaling works but I turned that off to test
+for now. .
 
-Let’s template a bunch of netcdf files out there. (Note this requires
-GDAL\>=3.12.0 which isn’t actually yet).
+Template a list of netcdf files and mosaic them to VRT, then open with
+this xarray backend. (Note this requires GDAL\>=3.12.0 ).
 
 ``` python
 month = "202501"
