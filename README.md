@@ -12,19 +12,10 @@ multidimensional API which is still relatively underutilized.
 
 ## Todo
 
-- [ ] apply xarray indexes when relevant in Raster and Multidim
+- [ ] apply xarray indexes when relevant in Raster and Multidim (see
+  [issue](https://github.com/mdsumner/gdx/issues/3%20for%20some%20discussion))
 - [ ] explore when we need to control driver choice
 - [ ] compare to opening with GDAL itself after `mdim mosaic`
-
-### Open questions
-
-- I set `chunks = {}` by default, is that ok
-- dask will very happily throw fsspec byte range requests at Thredds,
-  more than 10x will get a 104 error but GDAL multidim is better behaved
-  when you use it on its own: can we leverage this (GDAL connection
-  pooling?) within xarray??
-- I saw errors from HDF5, but is that via NetCDF or is my driver select
-  going wrong
 
 Here’s a basic example, this could be registered as an xarray backend
 *engine*.
@@ -177,6 +168,16 @@ backend.open_dataset("oisst.vrt", multidim = True)
 #     sst      (time, zlev, lat, lon) int16 64MB ...
 # 
 ```
+
+### Open questions
+
+- I set `chunks = {}` by default, is that ok
+- dask will very happily throw fsspec byte range requests at Thredds,
+  more than 10x will get a 104 error but GDAL multidim is better behaved
+  when you use it on its own: can we leverage this (GDAL connection
+  pooling?) within xarray??
+- I saw errors from HDF5, but is that via NetCDF or is my driver select
+  going wrong
 
 ## Code of Conduct
 

@@ -8,6 +8,12 @@ gdal.UseExceptions()
 from typing import Iterable, Optional
 
 
+##https://gist.github.com/mdsumner/911c181467abb2c91d08544a94d8510a
+from affine import Affine
+from rasterix import RasterIndex
+#https://xarray.dev/blog/flexible-indexing#xprojcrsindex
+from xproj import CRSIndex
+
 class GDALBackendArray(BackendArray):
     """Wrapper around GDAL dataset that implements xarray's BackendArray interface."""
     
@@ -298,9 +304,12 @@ class GDALBackendEntrypoint(BackendEntrypoint):
         geotransform = dataset.GetGeoTransform()
         
         # Calculate coordinates
-        x_coords = np.arange(dataset.RasterXSize) * geotransform[1] + geotransform[0]
-        y_coords = np.arange(dataset.RasterYSize) * geotransform[5] + geotransform[3]
-        
+        #x_coords = np.arange(dataset.RasterXSize) * geotransform[1] + geotransform[0]
+        #y_coords = np.arange(dataset.RasterYSize) * geotransform[5] + geotransform[3]
+        index = RasterIndex.from_transform(Affine.from_gdal(geotransform[0], geotransform[1], geotransform[2], 
+                                                            geotransform[3], geotransform[4], geotransform[5]), 
+                                                            width=dataset.RasterXSize, height=dataset.RasterYSize)
+
         # Get CRS
         projection = dataset.GetProjection()
         
@@ -346,17 +355,22 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             )
         
         # Create coordinates
-        coords = {
-            "x": x_coords,
-            "y": y_coords,
-        }
+        #coords = {
+        #    "x": x_coords,
+        #    "y": y_coords,
+        #}
         
         # Create dataset
-        ds = xr.Dataset(data_vars, coords=coords)
-        
+        ds = xr.Dataset(data_vars)
+        ##https://gist.github.com/mdsumner/911c181467abb2c91d08544a94d8510a
+        ds = ds.assign_coords(xr.Coordinates.from_xindex(index))
+          
+        # https://xarray.dev/blog/flexible-indexing#xprojcrsindex
+        if len(projection) > 0: 
+          ds = ds.proj.assign_crs(crs = projection)
         # Add global attributes
-        ds.attrs['crs'] = projection
-        ds.attrs['geotransform'] = geotransform
+        #ds.attrs['crs'] = projection
+        #ds.attrs['geotransform'] = geotransform
         
         return ds
     
