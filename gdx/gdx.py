@@ -212,7 +212,7 @@ class GDALMultiDimArray(BackendArray):
               stop = k.stop or self.shape[i]
               step = k.step or 1
               count = (stop - start + step - 1) // step
-          elif isinstance(k, int):
+          elif isinstance(k, int) | isinstance(k, float):
               start = k
               count = 1
               step = 1
@@ -232,6 +232,13 @@ class GDALMultiDimArray(BackendArray):
       #print(counts)
       #print(steps)
       ##osgeo.gdal_array.DatasetReadAsArray(ds, xoff=0, yoff=0, win_xsize=None, win_ysize=None, buf_obj=None, buf_xsize=None, buf_ysize=None, buf_type=None, resample_alg=0, callback=None, callback_data=None, interleave='band', band_list=None)
+      num_bytes = self.mdarray.GetDataType().itemsize * np.prod(counts) + 1
+      self.mdarray.AdviseRead(
+          array_start_idx=starts,
+          count=counts, 
+          options=[f"CACHE_SIZE={str(num_bytes)}"]
+      )
+      
       data = self.mdarray.ReadAsArray(
           array_start_idx=starts,
           count=counts,
@@ -444,7 +451,7 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             # Check if this is a coordinate variable
             is_coord = any(dim.GetName() == array_name for dim in dims)
             
-            if is_coord and len(dim_names) == 1:
+            if False and is_coord and len(dim_names) == 1:
                 # Add as coordinate - load eagerly for index variables
                 coord_data = backend_array[:]  # Load the data
                 coords[array_name] = xr.DataArray(coord_data, dims=dim_names, attrs=attrs)
