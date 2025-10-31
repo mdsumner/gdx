@@ -15,3 +15,8 @@ dependencies:
 - xarray
 - netcdf4
 - dask
+- affine
+- xproj
+- pip
+- pip:
+  - rasterix
