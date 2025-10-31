@@ -460,7 +460,7 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             # Check if this is a coordinate variable
             is_coord = any(dim.GetName() == array_name for dim in dims)
             
-            if False and is_coord and len(dim_names) == 1:
+            if is_coord and len(dim_names) == 1:
                 # Add as coordinate - load eagerly for index variables
                 coord_data = backend_array[:]  # Load the data
                 coords[array_name] = xr.DataArray(coord_data, dims=dim_names, attrs=attrs)
@@ -482,10 +482,11 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             attr_value = attr.Read()
             if attr_value is not None:
                 group_attrs[attr_name] = attr_value
-        
+  
+
         # Create dataset
         ds = xr.Dataset(data_vars, coords=coords, attrs=group_attrs)
-        
+      
         return ds  #{"data_vars": data_vars, "coords": coords}
     
     def guess_can_open(self, filename_or_obj):
