@@ -24,15 +24,16 @@ The goal of gdx is to integrate GDAL with xarray, especially for the multidimens
 
 ## Todo
 
-- [ ] apply xarray indexes when relevant in Raster and Multidim (see [issue](https://github.com/mdsumner/gdx/issues/3 for some discussion))
-- [ ] explore when we need to control driver choice
-- [ ] compare to opening with GDAL itself after `mdim mosaic`
+- [x] apply xarray indexes when relevant in Raster
+- [ ] apply xarray indexes when relevant in Multidim
+- [ ] define stance on representation of "default transform", and when GCPs, RPCs, or geolocation arrays are present
+- [ ] explore when we need to control driver choice (netcdf and hdf in particular)
+- [ ] explore registering as an xarray backend, via `engine = "gdal"`
 
 
 
 
-
-Here's a basic example, this could be registered as an xarray backend *engine*.
+Here's a basic example: 
 
 ```{python basic, eval = F}
 from gdx import GDALBackendEntrypoint
@@ -159,6 +160,49 @@ bvm.sel(xt_ocean = slice(140, 150), yt_ocean = slice(-55, -45), st_ocean = slice
 
 ```
 
+
+### A grib example
+
+What a joy to simply be able to use GDAL for what it is good at without intermediate layers. 
+
+
+```python
+from gdx import GDALBackendEntrypoint
+backend = GDALBackendEntrypoint()
+backend.open_dataset("/vsicurl/https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.20251031/16/core/blend.t16z.core.f260.co.grib2", multidim = False, chunks = None)
+```
+
+```
+<xarray.Dataset> Size: 989MB
+Dimensions:                                                                           (
+                                                                                       y: 1597,
+                                                                                       x: 2345)
+Coordinates:
+  * x                                                                                 (x) float64 19kB ...
+  * y                                                                                 (y) float64 13kB ...
+  * crs                                                                               int64 8B ...
+Data variables: (12/33)
+    APTMP:2 m above ground:260 hour fcst                                              (y, x) float64 30MB ...
+    CAPE:surface:260 hour fcst                                                        (y, x) float64 30MB ...
+    CWASP:surface:260 hour fcst                                                       (y, x) float64 30MB ...
+    DPT:2 m above ground:260 hour fcst                                                (y, x) float64 30MB ...
+    DSWRF:surface:260 hour fcst                                                       (y, x) float64 30MB ...
+    FICEAC:surface:254-260 hour acc fcst                                              (y, x) float64 30MB ...
+    ...                                                                                ...
+    WDIR:80 m above ground:260 hour fcst                                              (y, x) float64 30MB ...
+    WDIR:10 m above ground:260 hour fcst                                              (y, x) float64 30MB ...
+    GUST:10 m above ground:260 hour fcst                                              (y, x) float64 30MB ...
+    WIND:30 m above ground:260 hour fcst                                              (y, x) float64 30MB ...
+    WIND:80 m above ground:260 hour fcst                                              (y, x) float64 30MB ...
+    WIND:10 m above ground:260 hour fcst                                              (y, x) float64 30MB ...
+Indexes:
+  ┌ x        RasterIndex
+  └ y
+    crs      CRSIndex (crs=PROJCS["unnamed",GEOGCS["Coordinate System imported from GRIB file" ...)
+
+```
+
+
 There's a lot more to do,  scaling works but I turned that off to test for now. .
 
 Template a list of netcdf files and mosaic them to VRT, then open with this xarray backend.  (Note this requires GDAL>=3.12.0 ). 
@@ -187,8 +231,7 @@ backend.open_dataset("oisst.vrt", multidim = True)
 
 ### Open questions 
 
-- I set `chunks = {}` by default, is that ok
-- dask will very happily throw fsspec byte range requests at Thredds, more than 10x will get a 104 error but GDAL multidim is better behaved when you use it on its own: can we leverage this (GDAL connection pooling?) within xarray??
+- what makes sense for `chunks = ` default? 
 - I saw errors from HDF5, but is that via NetCDF or is my driver select going wrong
 
 
