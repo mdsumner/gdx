@@ -62,11 +62,7 @@ class GDALBackendArray(BackendArray):
     @property
     def size(self):
         return np.prod(self._shape)
-    
-    @property
-    def ndim(self):
-        return len(self._shape)
-    
+
     def __getitem__(self, key):
         # Handle xarray's explicit indexing objects
         from xarray.core import indexing as xr_indexing
