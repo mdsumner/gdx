@@ -465,7 +465,7 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             else:
                 # Add as data variable
                 data_vars[array_name] = xr.DataArray(data, dims=dim_names, attrs=attrs)
-                
+                data_vars[array_name].encoding['gdal_backend'] = backend_array 
                 # Create coordinate arrays for each dimension if not already present
                 for dim, dim_name in zip(dims, dim_names):
                     if dim_name not in coords and dim_name not in data_vars:
@@ -484,7 +484,13 @@ class GDALBackendEntrypoint(BackendEntrypoint):
 
         # Create dataset
         ds = xr.Dataset(data_vars, coords=coords, attrs=group_attrs)
-      
+        ds.encoding['gdal_dataset'] = dataset
+        ds.encoding['gdal_group'] = target_group
+    
+        ds.attrs['_gdal_arrays'] = {
+               name: data_vars[name].encoding.get('gdal_backend') 
+              for name in data_vars
+                                  }
         return ds  #{"data_vars": data_vars, "coords": coords}
     
     def guess_can_open(self, filename_or_obj):
