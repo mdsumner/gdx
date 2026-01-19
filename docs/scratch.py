@@ -57,3 +57,21 @@ ds  = ds["10m_u_component_of_wind"].isel(time = 1000000).values
 #        [ 0.34639144,  0.34639144,  0.34639144, ...,  0.34639144,
 #          0.34639144,  0.34639144]], shape=(721, 1440), dtype=float32)
 # 
+
+
+
+url = "https://s3.waw3-1.cloudferro.com/mdl-arco-time-025/arco/GLOBAL_MULTIYEAR_PHY_001_030/cmems_mod_glo_phy_my_0.083deg_P1D-m_202311/timeChunked.zarr"
+#data.marine.copernicus.eu/SEALEVEL_GLO_PHY_L4_MY_008_047/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.25deg_P1D_202112/1993/01/dt_global_allsat_phy_l4_19930101_20210726.nc
+
+#https://s3.waw3-1.cloudferro.com/mdl-arco-time-025/arco/SEALEVEL_GLO_PHY_L4_MY_008_047/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.25deg_P1D_202112/timeChunked.zarr
+dsn = f"ZARR:\"/vsicurl/{url}\""
+
+from gdx import GDALBackendEntrypoint
+backend = GDALBackendEntrypoint()
+
+from osgeo import gdal
+gdal.UseExceptions()
+gdal.SetConfigOption("GDAL_HTTP_HEADER_FILE", "/perm_storage/home/mdsumner/cmemsdata")
+
+gdal.SetConfigOption("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+backend.open_dataset(dsn, multidim = True, chunks = None)

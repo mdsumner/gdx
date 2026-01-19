@@ -208,10 +208,10 @@ class GDALMultiDimArray(BackendArray):
       
       for i, k in enumerate(key):
           if isinstance(k, slice):
-              start = k.start or 0
-              stop = k.stop or self.shape[i]
-              step = k.step or 1
-              count = (stop - start + step - 1) // step
+            start = k.start if k.start is not None else 0
+            stop = k.stop if k.stop is not None else self.shape[i]
+            step = k.step if k.step is not None else 1
+            count = (stop - start + step - 1) // step
           elif isinstance(k, int) | isinstance(k, float):
               start = k
               count = 1
@@ -223,7 +223,6 @@ class GDALMultiDimArray(BackendArray):
           starts.append(start)
           counts.append(count)
           steps.append(step)
-      
       # Handle zero-sized slices (Dask uses these for _meta)
       if any(c == 0 for c in counts):
          shape = [c for i, c in enumerate(counts) if i not in squeeze_dims]
@@ -231,11 +230,6 @@ class GDALMultiDimArray(BackendArray):
       # Read from GDAL multidim array
       # scale = self.mdarray.GetScale() 
       # offset = self.mdarray.GetOffset() 
-      #print("newvar\n")
-      #print(starts)
-      #print(counts)
-      #print(steps)
-      ##osgeo.gdal_array.DatasetReadAsArray(ds, xoff=0, yoff=0, win_xsize=None, win_ysize=None, buf_obj=None, buf_xsize=None, buf_ysize=None, buf_type=None, resample_alg=0, callback=None, callback_data=None, interleave='band', band_list=None)
       block = np.array(self.mdarray.GetBlockSize())
       ## avoid div by 0
       ## see issue https://github.com/OSGeo/gdal/issues/13324 
@@ -245,27 +239,20 @@ class GDALMultiDimArray(BackendArray):
           block[i] = self.shape[i]
       
       num_elem =  int(np.ceil(np.prod(np.ceil((np.array(counts) * np.array(steps))  / block) * block)))
-      # print(counts)
-      # print(steps)
-      # print(num_elem)
-      # print(self._dtype().itemsize)
       num_bytes = int(self._dtype().itemsize * num_elem * 1.2)
-      # print(num_bytes)
       if num_bytes < 16777216:
         num_bytes = 16777216
-      # self.mdarray.AdviseRead(
-      #       array_start_idx=starts,
-      #       count=counts, 
-      #       options=[f"CACHE_SIZE={str(num_bytes)}"]
-      # )
+      self.mdarray.AdviseRead(
+            array_start_idx=starts,
+            count=counts,
+            options=[f"CACHE_SIZE={str(num_bytes)}"]
+      )
       
       data = self.mdarray.ReadAsArray(
           array_start_idx=starts,
           count=counts,
           array_step=steps
       )
-      #print(data.shape)
-      #print(data)
       # if scale is not None:
       #   data = data * scale
       # if offset is not None: 
@@ -290,7 +277,7 @@ class GDALBackendEntrypoint(BackendEntrypoint):
         *,
         drop_variables=None,
         chunks={},
-        multidim=False,
+        multidim=True,
         group=None,
         **kwargs
     ):
@@ -380,13 +367,6 @@ class GDALBackendEntrypoint(BackendEntrypoint):
                 dims=["y", "x"],
                 attrs=band_attrs
             )
-        
-        # Create coordinates
-        #coords = {
-        #    "x": x_coords,
-        #    "y": y_coords,
-        #}
-        
         # Create dataset
         ds = xr.Dataset(data_vars)
         ##https://gist.github.com/mdsumner/911c181467abb2c91d08544a94d8510a
@@ -398,7 +378,6 @@ class GDALBackendEntrypoint(BackendEntrypoint):
         # Add global attributes
         #ds.attrs['crs'] = projection
         #ds.attrs['geotransform'] = geotransform
-        
         return ds
     
     def _open_multidim(self, filename_or_obj, chunks, group, drop_variables):
@@ -442,13 +421,20 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             
             # Create backend array
             backend_array = GDALMultiDimArray(mdarray)
-            
             # Wrap with Dask if chunks specified
             if chunks is not None:
-                # Convert chunks dict to tuple based on dim names
-                chunk_tuple = tuple(
-                    chunks.get(dim_name, -1) for dim_name in dim_names
-                )
+                if chunks == {}:
+                    # Use native block sizes from GDAL
+                    block_size = mdarray.GetBlockSize()
+                    dim_sizes = [dim.GetSize() for dim in dims]
+                    chunk_tuple = tuple(
+                        b if b > 0 else dim_sizes[i]
+                        for i, b in enumerate(block_size)
+                    )
+                else:
+                    chunk_tuple = tuple(
+                        chunks.get(dim_name, -1) for dim_name in dim_names
+                    )
                 dask_array = da.from_array(
                     backend_array,
                     chunks=chunk_tuple,
@@ -458,7 +444,8 @@ class GDALBackendEntrypoint(BackendEntrypoint):
                 data = dask_array
             else:
                 data = backend_array
-            
+
+
             # Get attributes
             attrs = {}
             md = mdarray.GetAttributes()
@@ -513,35 +500,3 @@ class GDALBackendEntrypoint(BackendEntrypoint):
         return False
 
 
-
-
-
-# # Example usage:
-# if __name__ == "__main__":
-#     # Method 1: Standard raster mode
-#     backend = GDALBackendEntrypoint()
-#     ds_raster = backend.open_dataset(
-#         "/perm_storage/home/mdsumner/world_ocean_ssh.tif",
-#         chunks={}
-#     )
-#     #print("Raster mode:")
-#     #print(ds_raster)
-#     ##print(ds_raster['band_1'][0:100, 0:100])
-#     # Method 2: Multidimensional mode
-#     ds_multidim = backend.open_dataset(
-#         "path/to/your/CS2WFA_25km_201007.nc",
-#         multidim=True,
-#         chunks={}
-#     )
-#     #print("\nMultidim mode:")
-#     #print(ds_multidim)
-#     # 
-#     # # Method 3: Multidimensional mode with group
-#     # ds_group = backend.open_dataset(
-#     #     "path/to/your/file.hdf5",
-#     #     multidim=True,
-#     #     group="/my/data/group",
-#     #     chunks={"time": 1, "lat": 256, "lon": 256}
-#     # )
-#     # #print("\nMultidim mode with group:")
-#     # #print(ds_group)
