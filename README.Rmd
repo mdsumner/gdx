@@ -128,13 +128,50 @@ ds1.sla.isel(longitude = 0, latitude = 1000).values
 
 What about a ZARR from CMEMS? 
 
-```{python cmems}
+```{python cmems, eval=FALSE}
 from gdx import GDALBackendEntrypoint
 dsn = 'ZARR:"/vsicurl/https://s3.waw3-1.cloudferro.com/mdl-arco-time-045/arco/SEALEVEL_GLO_PHY_L4_MY_008_047/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_202411/timeChunked.zarr"'
 backend = GDALBackendEntrypoint()
 #ds = backend.open_dataset(filename_or_obj, multidim = True, chunks = None)
 ds = backend.open_dataset(dsn, multidim = True, chunks = {})
 ds
+
+# <xarray.Dataset> Size: 2TB
+# Dimensions:         (latitude: 1440, longitude: 2880, time: 11902, nv: 2)
+# Coordinates:
+#   * latitude        (latitude) float32 6kB -89.94 -89.81 -89.69 ... 89.81 89.94
+#   * longitude       (longitude) float32 12kB -179.9 -179.8 ... 179.8 179.9
+#   * time            (time) float32 48kB 1.571e+04 1.571e+04 ... 2.761e+04
+#   * nv              (nv) int32 8B 0 1
+# Data variables: (12/13)
+#     adt             (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     err_sla         (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     err_ugosa       (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     err_vgosa       (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     flag_ice        (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     lat_bnds        (latitude, nv) float32 12kB dask.array<chunksize=(1440, 2), meta=np.ndarray>
+#     ...              ...
+#     sla             (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     tpa_correction  (time) int32 48kB dask.array<chunksize=(1,), meta=np.ndarray>
+#     ugos            (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     ugosa           (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     vgos            (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+#     vgosa           (time, latitude, longitude) int32 197GB dask.array<chunksize=(1, 512, 1024), meta=np.ndarray>
+# Attributes: (12/43)
+#     Conventions:                     CF-1.6
+#     Metadata_Conventions:            Unidata Dataset Discovery v1.0
+#     cdm_data_type:                   Grid
+#     comment:                         Sea Surface Height measured by Altimetry...
+#     contact:                         servicedesk.cmems@mercator-ocean.eu
+#     coordinates:                     lat_bnds lon_bnds
+#     ...                              ...
+#     summary:                         SSALTO/DUACS Delayed-Time Level-4 sea su...
+#     time_coverage_duration:          P1D
+#     time_coverage_end:               2023-12-31T12:00:00Z
+#     time_coverage_resolution:        P1D
+#     time_coverage_start:             2023-12-30T12:00:00Z
+#     title:                           DT merged all satellites Global Ocean Gr...
+
 ```
 
 This example is a virtualized mosaic of NetCDF in multidim VRT. 
