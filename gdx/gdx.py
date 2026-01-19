@@ -29,6 +29,10 @@ class GDALBackendArray(BackendArray):
         gdal_dtype = self.band.DataType
         self._dtype = self._gdal_to_numpy_dtype(gdal_dtype)
     
+    def __dask_tokenize__(self):
+        # Fast unique identifier - avoids Dask trying to hash the mdarray
+        return (type(self).__name__, id(self.mdarray))
+    
     @staticmethod
     def _gdal_to_numpy_dtype(gdal_dtype):
         """Convert GDAL data type to numpy dtype."""
@@ -62,10 +66,6 @@ class GDALBackendArray(BackendArray):
     @property
     def size(self):
         return np.prod(self._shape)
-    
-    @property
-    def ndim(self):
-        return len(self._shape)
     
     def __getitem__(self, key):
         # Handle xarray's explicit indexing objects
@@ -224,6 +224,10 @@ class GDALMultiDimArray(BackendArray):
           counts.append(count)
           steps.append(step)
       
+      # Handle zero-sized slices (Dask uses these for _meta)
+      if any(c == 0 for c in counts):
+         shape = [c for i, c in enumerate(counts) if i not in squeeze_dims]
+         return np.empty(shape, dtype=self._dtype)
       # Read from GDAL multidim array
       # scale = self.mdarray.GetScale() 
       # offset = self.mdarray.GetOffset() 
@@ -233,6 +237,13 @@ class GDALMultiDimArray(BackendArray):
       #print(steps)
       ##osgeo.gdal_array.DatasetReadAsArray(ds, xoff=0, yoff=0, win_xsize=None, win_ysize=None, buf_obj=None, buf_xsize=None, buf_ysize=None, buf_type=None, resample_alg=0, callback=None, callback_data=None, interleave='band', band_list=None)
       block = np.array(self.mdarray.GetBlockSize())
+      ## avoid div by 0
+      ## see issue https://github.com/OSGeo/gdal/issues/13324 
+      #block = [1 if x == 0 else x for x in block]
+      for i in range(len(block)): 
+        if block[i] == 0: 
+          block[i] = self.shape[i]
+      
       num_elem =  int(np.ceil(np.prod(np.ceil((np.array(counts) * np.array(steps))  / block) * block)))
       # print(counts)
       # print(steps)
@@ -242,11 +253,11 @@ class GDALMultiDimArray(BackendArray):
       # print(num_bytes)
       if num_bytes < 16777216:
         num_bytes = 16777216
-      self.mdarray.AdviseRead(
-            array_start_idx=starts,
-            count=counts, 
-            options=[f"CACHE_SIZE={str(num_bytes)}"]
-      )
+      # self.mdarray.AdviseRead(
+      #       array_start_idx=starts,
+      #       count=counts, 
+      #       options=[f"CACHE_SIZE={str(num_bytes)}"]
+      # )
       
       data = self.mdarray.ReadAsArray(
           array_start_idx=starts,
@@ -505,32 +516,32 @@ class GDALBackendEntrypoint(BackendEntrypoint):
 
 
 
-# Example usage:
-if __name__ == "__main__":
-    # Method 1: Standard raster mode
-    backend = GDALBackendEntrypoint()
-    ds_raster = backend.open_dataset(
-        "/perm_storage/home/mdsumner/world_ocean_ssh.tif",
-        chunks={}
-    )
-    #print("Raster mode:")
-    #print(ds_raster)
-    ##print(ds_raster['band_1'][0:100, 0:100])
-    # Method 2: Multidimensional mode
-    ds_multidim = backend.open_dataset(
-        "path/to/your/CS2WFA_25km_201007.nc",
-        multidim=True,
-        chunks={}
-    )
-    #print("\nMultidim mode:")
-    #print(ds_multidim)
-    # 
-    # # Method 3: Multidimensional mode with group
-    # ds_group = backend.open_dataset(
-    #     "path/to/your/file.hdf5",
-    #     multidim=True,
-    #     group="/my/data/group",
-    #     chunks={"time": 1, "lat": 256, "lon": 256}
-    # )
-    # #print("\nMultidim mode with group:")
-    # #print(ds_group)
+# # Example usage:
+# if __name__ == "__main__":
+#     # Method 1: Standard raster mode
+#     backend = GDALBackendEntrypoint()
+#     ds_raster = backend.open_dataset(
+#         "/perm_storage/home/mdsumner/world_ocean_ssh.tif",
+#         chunks={}
+#     )
+#     #print("Raster mode:")
+#     #print(ds_raster)
+#     ##print(ds_raster['band_1'][0:100, 0:100])
+#     # Method 2: Multidimensional mode
+#     ds_multidim = backend.open_dataset(
+#         "path/to/your/CS2WFA_25km_201007.nc",
+#         multidim=True,
+#         chunks={}
+#     )
+#     #print("\nMultidim mode:")
+#     #print(ds_multidim)
+#     # 
+#     # # Method 3: Multidimensional mode with group
+#     # ds_group = backend.open_dataset(
+#     #     "path/to/your/file.hdf5",
+#     #     multidim=True,
+#     #     group="/my/data/group",
+#     #     chunks={"time": 1, "lat": 256, "lon": 256}
+#     # )
+#     # #print("\nMultidim mode with group:")
+#     # #print(ds_group)
