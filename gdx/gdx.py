@@ -119,8 +119,8 @@ class GDALBackendArray(BackendArray):
           y_start, y_size = y_idx, 1
           squeeze_y = True
       elif isinstance(y_idx, slice):
-          y_start = y_idx.start or 0
-          y_stop = y_idx.stop or self.shape[0]
+          y_start = y_idx.start if y_idx.start is not None else 0
+          y_stop = y_idx.stop if y_idx.stop is not None else self.shape[0]
           y_size = y_stop - y_start
           squeeze_y = False
       else:
@@ -130,35 +130,29 @@ class GDALBackendArray(BackendArray):
           x_start, x_size = x_idx, 1
           squeeze_x = True
       elif isinstance(x_idx, slice):
-          x_start = x_idx.start or 0
-          x_stop = x_idx.stop or self.shape[1]
+          x_start = x_idx.start if x_idx.start is not None else 0
+          x_stop = x_idx.stop if x_idx.stop is not None else self.shape[1]
           x_size = x_stop - x_start
           squeeze_x = False
       else:
           raise IndexError(f"Unsupported x index type: {type(x_idx)}")
       
-
-      #scale = self.band.GetScale())
-      #offset = self.band.GetOffset()
-      # Read from GDAL
-      #print("newvar\n")
-      #print(x_start)
-      #print(y_start)
-      #print(x_size)
-      #print(y_size)
-      #osgeo.gdal_array.BandReadAsArray(band, xoff=0, yoff=0, win_xsize=None, win_ysize=None, buf_xsize=None, buf_ysize=None, buf_type=None, buf_obj=None, resample_alg=0, callback=None, callback_data=None)
+      # Handle zero-sized slices (Dask uses these for _meta)
+      if y_size == 0 or x_size == 0:
+          shape = []
+          if not squeeze_y:
+              shape.append(y_size)
+          if not squeeze_x:
+              shape.append(x_size)
+          return np.empty(shape, dtype=self._dtype)
+      
       data = self.band.ReadAsArray(
           xoff=x_start,
           yoff=y_start,
           win_xsize=x_size,
           win_ysize=y_size
-      ) 
-      #print(data.shape)
-      #print(data)
-      #if scale is not None: 
-      #  data = data * scale
-      #if offset is not None: 
-      #  data = data + offset
+      )
+      
       # Squeeze dimensions if we indexed with integers
       if squeeze_y and squeeze_x:
           return data[0, 0]
@@ -361,16 +355,30 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             #print(f'band{band_idx}')
             # Wrap with Dask if chunks specified
             if chunks is not None:
+                if chunks == {}:
+                    # FIXME what if no  bands available
+                    # Use native block sizes from GDAL
+                    block_size = dataset.GetRasterBand(1).GetBlockSize()
+                    dim_sizes = [dataset.RasterXSize, dataset.RasterYSize]
+                    chunk_tuple = tuple(
+                        b if b > 0 else dim_sizes[i]
+                        for i, b in enumerate(block_size)
+                    )
+                    print(f"shape={dim_sizes}, chunks={block_size}")
+                else:
+                    chunk_tuple = tuple(
+                        chunks.get(dim_name, -1) for dim_name in dim_names
+                    )
                 dask_array = da.from_array(
                     backend_array,
-                    chunks=chunks,
+                    chunks=chunk_tuple,
                     name=f"gdal-{filename_or_obj}-{band_name}",
                     asarray=False
                 )
                 data = dask_array
             else:
                 data = backend_array
-            
+
             # Get band metadata
             band_attrs = {
                 'nodata': band.GetNoDataValue(),
