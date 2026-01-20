@@ -488,12 +488,13 @@ class GDALBackendEntrypoint(BackendEntrypoint):
                 # Add as coordinate - load eagerly for index variables
                 coord_data = backend_array[:]  # Load the data
                     # Decode CF time coordinates
-                units = mdarray.GetUnit()
-    
-                if _is_time_coord(array_name, attrs, units):
+
+                if array_name == 'time':
+                  units = mdarray.GetUnit()
                   calendar = attrs.get('calendar', 'standard')
                   if units:
-                    coord_data = decode_cf_datetime(coord_data, units, calendar)
+                     coord_data = decode_cf_datetime(coord_data, units, calendar)
+
                 coords[array_name] = xr.DataArray(coord_data, dims=dim_names, attrs=attrs)
             else:
                 # Add as data variable
