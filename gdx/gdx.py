@@ -1,6 +1,8 @@
 import xarray as xr
 from xarray.backends import BackendEntrypoint, BackendArray
 from xarray.core import indexing
+from xarray.coding.times import decode_cf_datetime
+
 import numpy as np
 import dask.array as da
 from osgeo import gdal
@@ -13,6 +15,19 @@ from affine import Affine
 from rasterix import RasterIndex
 #https://xarray.dev/blog/flexible-indexing#xprojcrsindex
 from xproj import CRSIndex
+
+
+def _is_time_coord(array_name, attrs, units):
+    """Check if this is a time coordinate using CF conventions."""
+    if attrs.get('axis') == 'T':
+        return True
+    if attrs.get('standard_name') == 'time':
+        return True
+    if array_name.lower() == 'time':
+        return True
+    if units and ' since ' in units:
+        return True
+    return False
 
 class GDALBackendArray(BackendArray):
     """Wrapper around GDAL dataset that implements xarray's BackendArray interface."""
@@ -168,6 +183,7 @@ class GDALMultiDimArray(BackendArray):
         # Get numpy dtype
         gdal_dtype = mdarray.GetDataType().GetNumericDataType()
         self._dtype = GDALBackendArray._gdal_to_numpy_dtype(gdal_dtype)
+        self._chunks = tuple(mdarray.GetBlockSize()) 
     
     @property
     def shape(self):
@@ -247,7 +263,9 @@ class GDALMultiDimArray(BackendArray):
             count=counts,
             options=[f"CACHE_SIZE={str(num_bytes)}"]
       )
-      
+      print(f"starts={starts}, counts={counts}, steps={steps}, shape={self.shape}, chunks={self._chunks}")
+
+        
       data = self.mdarray.ReadAsArray(
           array_start_idx=starts,
           count=counts,
@@ -461,6 +479,13 @@ class GDALBackendEntrypoint(BackendEntrypoint):
             if is_coord and len(dim_names) == 1:
                 # Add as coordinate - load eagerly for index variables
                 coord_data = backend_array[:]  # Load the data
+                    # Decode CF time coordinates
+                units = mdarray.GetUnit()
+    
+                if _is_time_coord(array_name, attrs, units):
+                  calendar = attrs.get('calendar', 'standard')
+                  if units:
+                    coord_data = decode_cf_datetime(coord_data, units, calendar)
                 coords[array_name] = xr.DataArray(coord_data, dims=dim_names, attrs=attrs)
             else:
                 # Add as data variable

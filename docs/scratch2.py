@@ -11,12 +11,26 @@ print(f"open time: {time.time() - t0:.3f}s")
 
 
 
-filename_or_obj = 'ZARR:"/vsicurl/https://s3.waw3-1.cloudferro.com/mdl-arco-time-045/arco/SEALEVEL_GLO_PHY_L4_MY_008_047/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_202411/timeChunked.zarr"'
+dsntime = 'ZARR:"/vsicurl/https://s3.waw3-1.cloudferro.com/mdl-arco-time-045/arco/SEALEVEL_GLO_PHY_L4_MY_008_047/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_202411/timeChunked.zarr"'
+dsngeo = 'ZARR:"/vsicurl/https://s3.waw3-1.cloudferro.com/mdl-arco-geo-045/arco/SEALEVEL_GLO_PHY_L4_MY_008_047/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_202411/geoChunked.zarr"'
+
 from gdx import GDALBackendEntrypoint
 backend = GDALBackendEntrypoint()
 #ds = backend.open_dataset(filename_or_obj, multidim = True, chunks = None)
-ds = backend.open_dataset(filename_or_obj, multidim = True, chunks = {})
+dstime = backend.open_dataset(dsntime, multidim = True, chunks = {})
+dsgeo = backend.open_dataset(dsngeo, multidim = True, chunks = {})
 
+# geoChunked
+dsgeo.adt.sel(longitude = slice(147, 152), latitude = slice(-44, -43), time = slice("2020-01-01", "2020-01-10")).values
+## timeChunked
+dstime.adt.sel(longitude = slice(147, 148), latitude = slice(-44, -43), time = slice("2022-01-01", "2022-01-03")).values
+
+
+
+#adt = ds.sel(longitude = slice(147, 152), latitude = slice(-44, -43),  time  = slice(18682, 18690)).adt
+ds.adt.sel(longitude = slice(147, 152), latitude = slice(-44, -43), time = slice(18682, 18690)).mean(dim = ("longitude", "latitude")).values
+
+#ds.adt.sel(longitude = slice(147, 152), latitude = slice(-44, -43), time = slice("2020-01-01", "2020-01-10")).mean(dim = ("longitude", "latitude")).values
 
 
 from osgeo import gdal
